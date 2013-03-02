@@ -25,6 +25,13 @@ import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 
+import org.bouncycastle.crypto.CipherParameters;
+import org.bouncycastle.crypto.params.AsymmetricKeyParameter;
+import org.bouncycastle.crypto.params.ECDomainParameters;
+import org.bouncycastle.crypto.params.ECPrivateKeyParameters;
+import org.bouncycastle.crypto.params.ECPublicKeyParameters;
+import org.bouncycastle.crypto.signers.ECGOST3410Signer;
+import org.bouncycastle.jcajce.provider.asymmetric.ec.ECUtil;
 import org.bouncycastle.jce.spec.ECParameterSpec;
 //import org.bouncycastle.jce.spec.IEKeySpec;
 import org.bouncycastle.jce.spec.IESParameterSpec;
@@ -93,7 +100,7 @@ public class PKI {
 
         byte[] signatureBytes = null;
         try {
-            Signature signature = Signature.getInstance("GOST3411withECGOST3410");
+            Signature signature = Signature.getInstance("GOST3411withECGOST3410", "BC");
             signature.initSign(keyPair.getPrivate());
             signature.update(message);
             signatureBytes = signature.sign();
@@ -110,5 +117,49 @@ public class PKI {
         } catch(GeneralSecurityException e) {
             System.out.println(e.toString());
         }
+
+        byte[] hashSignatureBytes = signHashECGOST3410(hash, keyPair.getPrivate());
+        System.out.println("Hash signature\t" + new BigInteger(hashSignatureBytes).toString(16));
+
+        try {
+            Signature signature = Signature.getInstance("GOST3411withECGOST3410", "BC");
+            signature.initVerify(keyPair.getPublic());
+            signature.update(message);
+            if (signature.verify(signatureBytes)) {
+                System.out.println("Signature\tvalid");
+            } else {
+                System.out.println("Signature\tvalid");
+            }
+            if (signature.verify(hashSignatureBytes)) {
+                System.out.println("Hash signature\tvalid");
+            } else {
+                System.out.println("Hash signature\tvalid");
+            }
+        } catch(GeneralSecurityException e) {
+            System.out.println(e.toString());
+        }
+    }
+
+    public static byte[] signHashECGOST3410(byte[] hash, PrivateKey privateKey) {
+        byte[] signature = null;
+        ECGOST3410Signer gost3410Signer = new ECGOST3410Signer();
+        try {
+            CipherParameters param = ECUtil.generatePrivateKeyParameter(privateKey);
+            gost3410Signer.init(true, param);
+            BigInteger[] sigBigInts = gost3410Signer.generateSignature(hash);
+            byte[] r = sigBigInts[0].toByteArray();
+            byte[] s = sigBigInts[1].toByteArray();
+
+            signature = new byte[64];
+
+            int sOffset = (s[0] == 0) ? 1 : 0;
+            System.arraycopy(s, sOffset, signature, 32 - (s.length - sOffset), s.length - sOffset);
+
+            int rOffset = (r[0] == 0) ? 1 : 0;
+            System.arraycopy(r, rOffset, signature, 64 - (r.length - rOffset), r.length - rOffset);
+        } catch(GeneralSecurityException e) {
+            System.out.println(e.toString());
+        }
+        return signature;
     }
 }
