@@ -1,0 +1,21 @@
+<project name="security-tests"  default="run">
+
+    <target name="compile">
+        <javac srcdir="./" destdir="./"  source="1.6" target="1.6" debug="on" includeantruntime="false">
+          <classpath>
+              <pathelement location="bcprov-jdk15on-148.jar" />
+          </classpath>
+          <include name="PKI.java"/>
+      </javac>
+    </target>
+
+    <target name="run" depends="compile">
+       <java classname="PKI">
+          <classpath>
+            <pathelement location="${basedir}" />
+            <pathelement location="bcprov-jdk15on-148.jar" />
+         </classpath>
+       </java>
+    </target>
+
+</project>
