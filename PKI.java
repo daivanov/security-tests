@@ -1,3 +1,4 @@
+import java.io.IOException;
 import java.math.BigInteger;
 import java.security.GeneralSecurityException;
 import java.security.interfaces.ECPublicKey;
@@ -25,6 +26,9 @@ import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 
+import org.bouncycastle.asn1.ASN1Object;
+import org.bouncycastle.asn1.DERBitString;
+import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
 import org.bouncycastle.crypto.CipherParameters;
 import org.bouncycastle.crypto.params.AsymmetricKeyParameter;
 import org.bouncycastle.crypto.params.ECDomainParameters;
@@ -36,6 +40,7 @@ import org.bouncycastle.jce.spec.ECParameterSpec;
 //import org.bouncycastle.jce.spec.IEKeySpec;
 import org.bouncycastle.jce.spec.IESParameterSpec;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.bouncycastle.operator.DefaultSignatureAlgorithmIdentifierFinder;
 import org.bouncycastle.util.encoders.Hex;
 
 public class PKI {
@@ -141,6 +146,13 @@ public class PKI {
         } catch(GeneralSecurityException e) {
             System.out.println(e.toString());
         }
+
+        DefaultSignatureAlgorithmIdentifierFinder finder = new DefaultSignatureAlgorithmIdentifierFinder();
+        AlgorithmIdentifier algoId = finder.find("GOST3411withECGOST3410");
+        printDEREncoded(algoId.getAlgorithm().toString(), algoId);
+        org.bouncycastle.asn1.ocsp.Signature asn1signature = new org.bouncycastle.asn1.ocsp.Signature(
+            algoId, new DERBitString(hashSignatureBytes));
+        printDEREncoded("Signature", asn1signature);
     }
 
     public static byte[] signHashECGOST3410(byte[] hash, PrivateKey privateKey) {
@@ -164,5 +176,14 @@ public class PKI {
             System.out.println(e.toString());
         }
         return signature;
+    }
+
+    private static void printDEREncoded(String message, ASN1Object object) {
+        try {
+            byte[] derEncoded = object.getEncoded("DER");
+            System.out.println(message + "\t" + new BigInteger(derEncoded).toString(16));
+        } catch(IOException e) {
+            System.out.println(message + "\t" + e.toString());
+        }
     }
 }
