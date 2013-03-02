@@ -124,16 +124,19 @@ public class PKI {
         try {
             Signature signature = Signature.getInstance("GOST3411withECGOST3410", "BC");
             signature.initVerify(keyPair.getPublic());
+
             signature.update(message);
             if (signature.verify(signatureBytes)) {
                 System.out.println("Signature\tvalid");
             } else {
-                System.out.println("Signature\tvalid");
+                System.out.println("Signature\tinvalid");
             }
+
+            signature.update(message);
             if (signature.verify(hashSignatureBytes)) {
                 System.out.println("Hash signature\tvalid");
             } else {
-                System.out.println("Hash signature\tvalid");
+                System.out.println("Hash signature\tinvalid");
             }
         } catch(GeneralSecurityException e) {
             System.out.println(e.toString());
