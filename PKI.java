@@ -8,6 +8,7 @@ import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.InvalidKeyException;
 import java.security.Key;
+import java.security.KeyFactory;
 import java.security.MessageDigest;
 import java.security.PrivateKey;
 import java.security.Provider;
@@ -17,7 +18,9 @@ import java.security.Security;
 import java.security.Signature;
 import java.security.spec.AlgorithmParameterSpec;
 import java.security.spec.ECGenParameterSpec;
+import java.security.spec.ECParameterSpec;
 import java.security.spec.ECPoint;
+import java.security.spec.ECPublicKeySpec;
 import java.security.spec.RSAKeyGenParameterSpec;
 import java.util.Arrays;
 
@@ -36,7 +39,6 @@ import org.bouncycastle.crypto.params.ECPrivateKeyParameters;
 import org.bouncycastle.crypto.params.ECPublicKeyParameters;
 import org.bouncycastle.crypto.signers.ECGOST3410Signer;
 import org.bouncycastle.jcajce.provider.asymmetric.ec.ECUtil;
-import org.bouncycastle.jce.spec.ECParameterSpec;
 //import org.bouncycastle.jce.spec.IEKeySpec;
 import org.bouncycastle.jce.spec.IESParameterSpec;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
@@ -58,7 +60,10 @@ public class PKI {
             System.out.println(e.toString());
         }
 
+        /* Generate EC key */
         KeyPair keyPair = null;
+        ECPoint point = null;
+        ECParameterSpec paramSpec = null;
         if (keyPairGenerator != null) {
             keyPair = keyPairGenerator.generateKeyPair();
             PublicKey publicKey = keyPair.getPublic();
@@ -66,14 +71,28 @@ public class PKI {
 
             if (publicKey instanceof ECPublicKey) {
                 ECPublicKey ecPublicKey = (ECPublicKey)publicKey;
-                ECPoint point = ecPublicKey.getW();
+                point = ecPublicKey.getW();
                 BigInteger affineX = point.getAffineX();
                 System.out.println("X\t" + affineX.toString(16));
                 BigInteger affineY = point.getAffineY();
                 System.out.println("Y\t" + affineY.toString(16));
+                paramSpec = ecPublicKey.getParams();
             }
         }
 
+        /* Recover EC key from elliptic curve point */
+        if (point != null && paramSpec != null) {
+            ECPublicKeySpec pubKeySpec = new ECPublicKeySpec(point, paramSpec);
+            try {
+                KeyFactory keyFactory = KeyFactory.getInstance("ECGOST3410", "BC");
+                PublicKey publicKey = keyFactory.generatePublic(pubKeySpec);
+                System.out.println(publicKey.toString());
+            } catch(GeneralSecurityException e) {
+                System.out.println(e.toString());
+            }
+        }
+
+        /* Encrypt/Decrypt */
         byte[] message = Hex.decode("1234567890abcdef");
         System.out.println("Message\t" + new BigInteger(message).toString(16));
 
@@ -103,6 +122,7 @@ public class PKI {
             }
         }
 
+        /* Sign */
         byte[] signatureBytes = null;
         try {
             Signature signature = Signature.getInstance("GOST3411withECGOST3410", "BC");
@@ -114,6 +134,7 @@ public class PKI {
             System.out.println(e.toString());
         }
 
+        /* Compute digest */
         byte[] hash = null;
         try {
             MessageDigest md = MessageDigest.getInstance("GOST3411", "BC");
@@ -123,9 +144,11 @@ public class PKI {
             System.out.println(e.toString());
         }
 
+        /* Sign digest */
         byte[] hashSignatureBytes = signHashECGOST3410(hash, keyPair.getPrivate());
         System.out.println("Hash signature\t" + new BigInteger(hashSignatureBytes).toString(16));
 
+        /* Verify digest signature */
         try {
             Signature signature = Signature.getInstance("GOST3411withECGOST3410", "BC");
             signature.initVerify(keyPair.getPublic());
@@ -147,6 +170,7 @@ public class PKI {
             System.out.println(e.toString());
         }
 
+        /* Encode signature as ASN.1 DER */
         DefaultSignatureAlgorithmIdentifierFinder finder = new DefaultSignatureAlgorithmIdentifierFinder();
         AlgorithmIdentifier algoId = finder.find("GOST3411withECGOST3410");
         printDEREncoded(algoId.getAlgorithm().toString(), algoId);
