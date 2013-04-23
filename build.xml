@@ -1,22 +1,23 @@
-<project name="security-tests"  default="run">
+<project name="security-tests" default="run">
+
+  <path id="classpath-compile">
+    <pathelement location="bcprov-jdk15on-148.jar" />
+    <pathelement location="bcpkix-jdk15on-148.jar" />
+  </path>
+
+  <path id="classpath-run">
+    <path refid="classpath-compile" />
+    <pathelement location="${basedir}" />
+  </path>
 
   <target name="compile">
-    <javac srcdir="./" destdir="./"  source="1.6" target="1.6" debug="on" includeantruntime="false">
-      <classpath>
-        <pathelement location="bcprov-jdk15on-148.jar" />
-        <pathelement location="bcpkix-jdk15on-148.jar" />
-      </classpath>
-      <include name="PKI.java"/>
+    <javac srcdir="./" destdir="./" source="1.6" target="1.6" includeantruntime="false" debug="on" classpathref="classpath-compile">
+      <include name="PKI.java" />
     </javac>
   </target>
 
   <target name="run" depends="compile">
-    <java classname="PKI">
-      <classpath>
-        <pathelement location="${basedir}" />
-        <pathelement location="bcprov-jdk15on-148.jar" />
-        <pathelement location="bcpkix-jdk15on-148.jar" />
-      </classpath>
+    <java classname="PKI" classpathref="classpath-run">
     </java>
   </target>
 
