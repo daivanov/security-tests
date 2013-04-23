@@ -46,29 +46,55 @@ import org.bouncycastle.operator.DefaultSignatureAlgorithmIdentifierFinder;
 import org.bouncycastle.util.encoders.Hex;
 
 public class PKI {
-    public static void main(String[] args) {
 
-        Security.addProvider(new BouncyCastleProvider());
-
+    public static KeyPairGenerator getKeyPairGenerator(String algorithm, String parameter) {
         KeyPairGenerator keyPairGenerator = null;
         try {
-            keyPairGenerator = KeyPairGenerator.getInstance("ECGOST3410", "BC");
-            AlgorithmParameterSpec spec =
-                new ECGenParameterSpec("GostR3410-2001-CryptoPro-A");
+            keyPairGenerator = KeyPairGenerator.getInstance(algorithm, "BC");
+            AlgorithmParameterSpec spec = new ECGenParameterSpec(parameter);
             keyPairGenerator.initialize(spec, new SecureRandom());
         } catch(GeneralSecurityException e) {
             System.out.println(e.toString());
         }
+        return keyPairGenerator;
+    }
 
-        /* Generate EC key */
+    public static KeyPair generateKeyPair(KeyPairGenerator keyPairGenerator) {
         KeyPair keyPair = null;
-        ECPoint point = null;
-        ECParameterSpec paramSpec = null;
         if (keyPairGenerator != null) {
             keyPair = keyPairGenerator.generateKeyPair();
+        }
+        return keyPair;
+    }
+
+    public static PublicKey recoverECPublicKey(String algorithm, ECPoint point, ECParameterSpec paramSpec) {
+        PublicKey publicKey = null;
+        if (point != null && paramSpec != null) {
+            ECPublicKeySpec pubKeySpec = new ECPublicKeySpec(point, paramSpec);
+            try {
+                KeyFactory keyFactory = KeyFactory.getInstance(algorithm, "BC");
+                publicKey = keyFactory.generatePublic(pubKeySpec);
+                System.out.println(publicKey.toString());
+            } catch(GeneralSecurityException e) {
+                System.out.println(e.toString());
+            }
+        }
+        return publicKey;
+    }
+
+    public static void main(String[] args) {
+
+        Security.addProvider(new BouncyCastleProvider());
+
+        KeyPairGenerator keyPairGenerator = getKeyPairGenerator("ECGOST3410", "GostR3410-2001-CryptoPro-A");
+
+        KeyPair keyPair = generateKeyPair(keyPairGenerator);
+
+        ECPoint point = null;
+        ECParameterSpec paramSpec = null;
+        if (keyPair != null) {
             PublicKey publicKey = keyPair.getPublic();
             System.out.println(publicKey.toString());
-
             if (publicKey instanceof ECPublicKey) {
                 ECPublicKey ecPublicKey = (ECPublicKey)publicKey;
                 point = ecPublicKey.getW();
@@ -80,17 +106,7 @@ public class PKI {
             }
         }
 
-        /* Recover EC key from elliptic curve point */
-        if (point != null && paramSpec != null) {
-            ECPublicKeySpec pubKeySpec = new ECPublicKeySpec(point, paramSpec);
-            try {
-                KeyFactory keyFactory = KeyFactory.getInstance("ECGOST3410", "BC");
-                PublicKey publicKey = keyFactory.generatePublic(pubKeySpec);
-                System.out.println(publicKey.toString());
-            } catch(GeneralSecurityException e) {
-                System.out.println(e.toString());
-            }
-        }
+        PublicKey recoveredKey = recoverECPublicKey("ECGOST3410", point, paramSpec);
 
         /* Encrypt/Decrypt */
         byte[] message = Hex.decode("1234567890abcdef");
