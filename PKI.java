@@ -31,6 +31,7 @@ import javax.crypto.NoSuchPaddingException;
 
 import org.bouncycastle.asn1.ASN1Object;
 import org.bouncycastle.asn1.DERBitString;
+import org.bouncycastle.asn1.util.ASN1Dump;
 import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
 import org.bouncycastle.crypto.CipherParameters;
 import org.bouncycastle.crypto.params.AsymmetricKeyParameter;
@@ -50,7 +51,7 @@ public class PKI {
     public static KeyPairGenerator getKeyPairGenerator(String algorithm, String parameter) {
         KeyPairGenerator keyPairGenerator = null;
         try {
-            keyPairGenerator = KeyPairGenerator.getInstance(algorithm, "BC");
+            keyPairGenerator = KeyPairGenerator.getInstance(algorithm, BouncyCastleProvider.PROVIDER_NAME);
             AlgorithmParameterSpec spec = new ECGenParameterSpec(parameter);
             keyPairGenerator.initialize(spec, new SecureRandom());
         } catch(GeneralSecurityException e) {
@@ -72,7 +73,7 @@ public class PKI {
         if (point != null && paramSpec != null) {
             ECPublicKeySpec pubKeySpec = new ECPublicKeySpec(point, paramSpec);
             try {
-                KeyFactory keyFactory = KeyFactory.getInstance(algorithm, "BC");
+                KeyFactory keyFactory = KeyFactory.getInstance(algorithm, BouncyCastleProvider.PROVIDER_NAME);
                 publicKey = keyFactory.generatePublic(pubKeySpec);
                 System.out.println(publicKey.toString());
             } catch(GeneralSecurityException e) {
@@ -85,6 +86,7 @@ public class PKI {
     public static void main(String[] args) {
 
         Security.addProvider(new BouncyCastleProvider());
+        System.out.println(Security.getProvider(BouncyCastleProvider.PROVIDER_NAME).getInfo());
 
         KeyPairGenerator keyPairGenerator = getKeyPairGenerator("ECGOST3410", "GostR3410-2001-CryptoPro-A");
 
@@ -122,13 +124,13 @@ public class PKI {
             //Key privateKey = new IEKeySpec(keyPair.getPrivate(), keyPair.getPublic());
             try {
 
-                Cipher cipher1 = Cipher.getInstance("ECIES", "BC");
+                Cipher cipher1 = Cipher.getInstance("ECIES", BouncyCastleProvider.PROVIDER_NAME);
                 cipher1.init(Cipher.ENCRYPT_MODE, publicKey, iesSpec);
                 byte[] encrypted = cipher1.doFinal(message, 0, message.length);
 
                 System.out.println("Encrypted\t" + new BigInteger(encrypted).toString(16));
 
-                Cipher cipher2 = Cipher.getInstance("ECIES", "BC");
+                Cipher cipher2 = Cipher.getInstance("ECIES", BouncyCastleProvider.PROVIDER_NAME);
                 cipher2.init(Cipher.DECRYPT_MODE, privateKey, iesSpec);
                 byte[] decrypted = cipher2.doFinal(encrypted, 0, encrypted.length);
 
@@ -141,7 +143,7 @@ public class PKI {
         /* Sign */
         byte[] signatureBytes = null;
         try {
-            Signature signature = Signature.getInstance("GOST3411withECGOST3410", "BC");
+            Signature signature = Signature.getInstance("GOST3411withECGOST3410", BouncyCastleProvider.PROVIDER_NAME);
             signature.initSign(keyPair.getPrivate());
             signature.update(message);
             signatureBytes = signature.sign();
@@ -153,7 +155,7 @@ public class PKI {
         /* Compute digest */
         byte[] hash = null;
         try {
-            MessageDigest md = MessageDigest.getInstance("GOST3411", "BC");
+            MessageDigest md = MessageDigest.getInstance("GOST3411", BouncyCastleProvider.PROVIDER_NAME);
             hash = md.digest(message);
             System.out.println("Hash\t" + new BigInteger(hash).toString(16));
         } catch(GeneralSecurityException e) {
@@ -166,7 +168,7 @@ public class PKI {
 
         /* Verify digest signature */
         try {
-            Signature signature = Signature.getInstance("GOST3411withECGOST3410", "BC");
+            Signature signature = Signature.getInstance("GOST3411withECGOST3410", BouncyCastleProvider.PROVIDER_NAME);
             signature.initVerify(keyPair.getPublic());
 
             signature.update(message);
@@ -222,6 +224,7 @@ public class PKI {
         try {
             byte[] derEncoded = object.getEncoded("DER");
             System.out.println(message + "\t" + new BigInteger(derEncoded).toString(16));
+            System.out.println(message + "\t" + ASN1Dump.dumpAsString(object, false));
         } catch(IOException e) {
             System.out.println(message + "\t" + e.toString());
         }
