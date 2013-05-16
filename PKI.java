@@ -112,7 +112,7 @@ public class PKI {
 
         /* Encrypt/Decrypt */
         byte[] message = Hex.decode("1234567890abcdef");
-        System.out.println("Message\t" + new BigInteger(message).toString(16));
+        System.out.println("Message\t" + toHexStr(message));
 
         if (keyPair != null) {
             byte[] derivation = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 };
@@ -128,13 +128,13 @@ public class PKI {
                 cipher1.init(Cipher.ENCRYPT_MODE, publicKey, iesSpec);
                 byte[] encrypted = cipher1.doFinal(message, 0, message.length);
 
-                System.out.println("Encrypted\t" + new BigInteger(encrypted).toString(16));
+                System.out.println("Encrypted\t" + toHexStr(encrypted));
 
                 Cipher cipher2 = Cipher.getInstance("ECIES", BouncyCastleProvider.PROVIDER_NAME);
                 cipher2.init(Cipher.DECRYPT_MODE, privateKey, iesSpec);
                 byte[] decrypted = cipher2.doFinal(encrypted, 0, encrypted.length);
 
-                System.out.println("Decrypted\t" + new BigInteger(decrypted).toString(16));
+                System.out.println("Decrypted\t" + toHexStr(decrypted));
             } catch(GeneralSecurityException e) {
                 System.out.println(e.toString());
             }
@@ -147,7 +147,7 @@ public class PKI {
             signature.initSign(keyPair.getPrivate());
             signature.update(message);
             signatureBytes = signature.sign();
-            System.out.println("Signature\t" + new BigInteger(signatureBytes).toString(16));
+            System.out.println("Signature\t" + toHexStr(signatureBytes));
         } catch(GeneralSecurityException e) {
             System.out.println(e.toString());
         }
@@ -157,14 +157,14 @@ public class PKI {
         try {
             MessageDigest md = MessageDigest.getInstance("GOST3411", BouncyCastleProvider.PROVIDER_NAME);
             hash = md.digest(message);
-            System.out.println("Hash\t" + new BigInteger(hash).toString(16));
+            System.out.println("Hash\t" + toHexStr(hash));
         } catch(GeneralSecurityException e) {
             System.out.println(e.toString());
         }
 
         /* Sign digest */
         byte[] hashSignatureBytes = signHashECGOST3410(hash, keyPair.getPrivate());
-        System.out.println("Hash signature\t" + new BigInteger(hashSignatureBytes).toString(16));
+        System.out.println("Hash signature\t" + toHexStr(hashSignatureBytes));
 
         /* Verify digest signature */
         try {
@@ -223,10 +223,14 @@ public class PKI {
     private static void printDEREncoded(String message, ASN1Object object) {
         try {
             byte[] derEncoded = object.getEncoded("DER");
-            System.out.println(message + "\t" + new BigInteger(derEncoded).toString(16));
+            System.out.println(message + "\t" + toHexStr(derEncoded));
             System.out.println(message + "\t" + ASN1Dump.dumpAsString(object, false));
         } catch(IOException e) {
             System.out.println(message + "\t" + e.toString());
         }
+    }
+
+    private static String toHexStr(byte[] bytes) {
+        return new BigInteger(1, bytes).toString(16);
     }
 }
