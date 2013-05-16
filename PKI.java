@@ -83,6 +83,55 @@ public class PKI {
         return publicKey;
     }
 
+    public static byte[] sign(String algorithm, PrivateKey privateKey, byte[] messageBytes) {
+        byte[] signatureBytes = null;
+        try {
+            Signature signature = Signature.getInstance(algorithm, BouncyCastleProvider.PROVIDER_NAME);
+            signature.initSign(privateKey);
+            signature.update(messageBytes);
+            signatureBytes = signature.sign();
+        } catch(GeneralSecurityException e) {
+            System.out.println(e.toString());
+        }
+        return signatureBytes;
+    }
+
+    public static byte[] signHashECGOST3410(byte[] hash, PrivateKey privateKey) {
+        byte[] signature = null;
+        ECGOST3410Signer gost3410Signer = new ECGOST3410Signer();
+        try {
+            CipherParameters param = ECUtil.generatePrivateKeyParameter(privateKey);
+            gost3410Signer.init(true, param);
+            BigInteger[] sigBigInts = gost3410Signer.generateSignature(hash);
+            byte[] r = sigBigInts[0].toByteArray();
+            byte[] s = sigBigInts[1].toByteArray();
+
+            signature = new byte[64];
+
+            int sOffset = (s[0] == 0) ? 1 : 0;
+            System.arraycopy(s, sOffset, signature, 32 - (s.length - sOffset), s.length - sOffset);
+
+            int rOffset = (r[0] == 0) ? 1 : 0;
+            System.arraycopy(r, rOffset, signature, 64 - (r.length - rOffset), r.length - rOffset);
+        } catch(GeneralSecurityException e) {
+            System.out.println(e.toString());
+        }
+        return signature;
+    }
+
+    public static boolean verify(String algorithm, PublicKey publicKey, byte[] messageBytes, byte[] signatureBytes) {
+        boolean valid = false;
+        try {
+            Signature signature = Signature.getInstance(algorithm, BouncyCastleProvider.PROVIDER_NAME);
+            signature.initVerify(publicKey);
+            signature.update(messageBytes);
+            valid = signature.verify(signatureBytes);
+        } catch(GeneralSecurityException e) {
+            System.out.println(e.toString());
+        }
+        return valid;
+    }
+
     public static void main(String[] args) {
 
         Security.addProvider(new BouncyCastleProvider());
@@ -140,17 +189,8 @@ public class PKI {
             }
         }
 
-        /* Sign */
-        byte[] signatureBytes = null;
-        try {
-            Signature signature = Signature.getInstance("GOST3411withECGOST3410", BouncyCastleProvider.PROVIDER_NAME);
-            signature.initSign(keyPair.getPrivate());
-            signature.update(message);
-            signatureBytes = signature.sign();
-            System.out.println("Signature\t" + toHexStr(signatureBytes));
-        } catch(GeneralSecurityException e) {
-            System.out.println(e.toString());
-        }
+        byte[] signatureBytes = sign("GOST3411withECGOST3410", keyPair.getPrivate(), message);
+        System.out.println("Signature\t" + toHexStr(signatureBytes));
 
         /* Compute digest */
         byte[] hash = null;
@@ -167,25 +207,16 @@ public class PKI {
         System.out.println("Hash signature\t" + toHexStr(hashSignatureBytes));
 
         /* Verify digest signature */
-        try {
-            Signature signature = Signature.getInstance("GOST3411withECGOST3410", BouncyCastleProvider.PROVIDER_NAME);
-            signature.initVerify(keyPair.getPublic());
+        if (verify("GOST3411withECGOST3410", keyPair.getPublic(), message, signatureBytes)) {
+            System.out.println("Signature\tvalid");
+        } else {
+            System.out.println("Signature\tinvalid");
+        }
 
-            signature.update(message);
-            if (signature.verify(signatureBytes)) {
-                System.out.println("Signature\tvalid");
-            } else {
-                System.out.println("Signature\tinvalid");
-            }
-
-            signature.update(message);
-            if (signature.verify(hashSignatureBytes)) {
-                System.out.println("Hash signature\tvalid");
-            } else {
-                System.out.println("Hash signature\tinvalid");
-            }
-        } catch(GeneralSecurityException e) {
-            System.out.println(e.toString());
+        if (verify("GOST3411withECGOST3410", keyPair.getPublic(), message, hashSignatureBytes)) {
+            System.out.println("Hash signature\tvalid");
+        } else {
+            System.out.println("Hash signature\tinvalid");
         }
 
         /* Encode signature as ASN.1 DER */
@@ -197,34 +228,12 @@ public class PKI {
         printDEREncoded("Signature", asn1signature);
     }
 
-    public static byte[] signHashECGOST3410(byte[] hash, PrivateKey privateKey) {
-        byte[] signature = null;
-        ECGOST3410Signer gost3410Signer = new ECGOST3410Signer();
-        try {
-            CipherParameters param = ECUtil.generatePrivateKeyParameter(privateKey);
-            gost3410Signer.init(true, param);
-            BigInteger[] sigBigInts = gost3410Signer.generateSignature(hash);
-            byte[] r = sigBigInts[0].toByteArray();
-            byte[] s = sigBigInts[1].toByteArray();
-
-            signature = new byte[64];
-
-            int sOffset = (s[0] == 0) ? 1 : 0;
-            System.arraycopy(s, sOffset, signature, 32 - (s.length - sOffset), s.length - sOffset);
-
-            int rOffset = (r[0] == 0) ? 1 : 0;
-            System.arraycopy(r, rOffset, signature, 64 - (r.length - rOffset), r.length - rOffset);
-        } catch(GeneralSecurityException e) {
-            System.out.println(e.toString());
-        }
-        return signature;
-    }
-
     private static void printDEREncoded(String message, ASN1Object object) {
         try {
             byte[] derEncoded = object.getEncoded("DER");
-            System.out.println(message + "\t" + toHexStr(derEncoded));
-            System.out.println(message + "\t" + ASN1Dump.dumpAsString(object, false));
+            System.out.println(message +
+                "\n" + toHexStr(derEncoded) +
+                "\n" + ASN1Dump.dumpAsString(object, false));
         } catch(IOException e) {
             System.out.println(message + "\t" + e.toString());
         }
