@@ -206,11 +206,16 @@ public class PKI {
         byte[] hashSignatureBytes = signHashECGOST3410(hash, keyPair.getPrivate());
         System.out.println("Hash signature\t" + toHexStr(hashSignatureBytes));
 
-        /* Verify digest signature */
         if (verify("GOST3411withECGOST3410", keyPair.getPublic(), message, signatureBytes)) {
             System.out.println("Signature\tvalid");
         } else {
             System.out.println("Signature\tinvalid");
+        }
+
+        if (verify("GOST3411withECGOST3410", recoveredKey, message, signatureBytes)) {
+            System.out.println("Signature with recovered key\tvalid");
+        } else {
+            System.out.println("Signature with recovered key\tinvalid");
         }
 
         if (verify("GOST3411withECGOST3410", keyPair.getPublic(), message, hashSignatureBytes)) {
