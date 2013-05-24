@@ -154,6 +154,11 @@ public class PKI {
                 BigInteger affineY = point.getAffineY();
                 System.out.println("Y\t" + affineY.toString(16));
                 paramSpec = ecPublicKey.getParams();
+                System.out.println("Co-factor\t" + paramSpec.getCofactor());
+                System.out.println("Curve\t" + paramSpec.getCurve().toString());
+                System.out.println("Generator X\t" + paramSpec.getGenerator().getAffineX().toString(16));
+                System.out.println("Generator Y\t" + paramSpec.getGenerator().getAffineY().toString(16));
+                System.out.println("Order\t" + paramSpec.getOrder().toString(16));
             }
         }
 
