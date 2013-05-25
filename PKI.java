@@ -155,7 +155,9 @@ public class PKI {
                 System.out.println("Y\t" + affineY.toString(16));
                 paramSpec = ecPublicKey.getParams();
                 System.out.println("Co-factor\t" + paramSpec.getCofactor());
-                System.out.println("Curve\t" + paramSpec.getCurve().toString());
+                System.out.println("Curve A\t" + paramSpec.getCurve().getA().toString(16));
+                System.out.println("Curve B\t" + paramSpec.getCurve().getB().toString(16));
+                System.out.println("Curve filed size\t" + paramSpec.getCurve().getField().getFieldSize());
                 System.out.println("Generator X\t" + paramSpec.getGenerator().getAffineX().toString(16));
                 System.out.println("Generator Y\t" + paramSpec.getGenerator().getAffineY().toString(16));
                 System.out.println("Order\t" + paramSpec.getOrder().toString(16));
@@ -195,21 +197,21 @@ public class PKI {
         }
 
         byte[] signatureBytes = sign("GOST3411withECGOST3410", keyPair.getPrivate(), message);
-        System.out.println("Signature\t" + toHexStr(signatureBytes));
+        System.out.println("Signature\n" + toHexStr(signatureBytes).replaceAll("(.{64})", "$1\n"));
 
         /* Compute digest */
         byte[] hash = null;
         try {
             MessageDigest md = MessageDigest.getInstance("GOST3411", BouncyCastleProvider.PROVIDER_NAME);
             hash = md.digest(message);
-            System.out.println("Hash\t" + toHexStr(hash));
+            System.out.println("Hash\n" + toHexStr(hash));
         } catch(GeneralSecurityException e) {
             System.out.println(e.toString());
         }
 
         /* Sign digest */
         byte[] hashSignatureBytes = signHashECGOST3410(hash, keyPair.getPrivate());
-        System.out.println("Hash signature\t" + toHexStr(hashSignatureBytes));
+        System.out.println("Hash signature\n" + toHexStr(hashSignatureBytes).replaceAll("(.{64})", "$1\n"));
 
         if (verify("GOST3411withECGOST3410", keyPair.getPublic(), message, signatureBytes)) {
             System.out.println("Signature\tvalid");
