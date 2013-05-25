@@ -146,6 +146,8 @@ public class PKI {
         if (keyPair != null) {
             PublicKey publicKey = keyPair.getPublic();
             System.out.println(publicKey.toString());
+            PrivateKey privateKey = keyPair.getPrivate();
+            System.out.println(privateKey.toString());
             if (publicKey instanceof ECPublicKey) {
                 ECPublicKey ecPublicKey = (ECPublicKey)publicKey;
                 point = ecPublicKey.getW();
