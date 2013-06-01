@@ -1,6 +1,7 @@
 import java.io.IOException;
 import java.math.BigInteger;
 import java.security.GeneralSecurityException;
+import java.security.interfaces.ECKey;
 import java.security.interfaces.ECPublicKey;
 import java.security.interfaces.ECPrivateKey;
 import java.security.interfaces.RSAPublicKey;
@@ -66,6 +67,20 @@ public class PKI {
             keyPair = keyPairGenerator.generateKeyPair();
         }
         return keyPair;
+    }
+
+    public static ECParameterSpec generateParameterSpec(String algorithm, String parameter) {
+        KeyPairGenerator keyPairGenerator = getKeyPairGenerator(algorithm, parameter);
+        KeyPair keyPair = generateKeyPair(keyPairGenerator);
+        ECParameterSpec paramSpec = null;
+        if (keyPair != null) {
+            PublicKey publicKey = keyPair.getPublic();
+            if (publicKey instanceof ECKey) {
+                ECKey ecKey = (ECKey)publicKey;
+                paramSpec = ecKey.getParams();
+            }
+        }
+        return paramSpec;
     }
 
     public static PublicKey recoverECPublicKey(String algorithm, ECPoint point, ECParameterSpec paramSpec) {
@@ -166,7 +181,8 @@ public class PKI {
             }
         }
 
-        PublicKey recoveredKey = recoverECPublicKey("ECGOST3410", point, paramSpec);
+        PublicKey recoveredKey = recoverECPublicKey("ECGOST3410", point,
+            generateParameterSpec("ECGOST3410", "GostR3410-2001-CryptoPro-A"));
 
         /* Encrypt/Decrypt */
         byte[] message = Hex.decode("1234567890abcdef");
