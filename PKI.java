@@ -1,5 +1,6 @@
 import java.io.IOException;
 import java.math.BigInteger;
+import java.nio.ByteBuffer;
 import java.security.GeneralSecurityException;
 import java.security.interfaces.ECKey;
 import java.security.interfaces.ECPublicKey;
@@ -17,6 +18,8 @@ import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.Security;
 import java.security.Signature;
+import java.security.cert.CertificateParsingException;
+import java.security.cert.X509Certificate;
 import java.security.spec.AlgorithmParameterSpec;
 import java.security.spec.ECGenParameterSpec;
 import java.security.spec.ECParameterSpec;
@@ -24,6 +27,8 @@ import java.security.spec.ECPoint;
 import java.security.spec.ECPublicKeySpec;
 import java.security.spec.RSAKeyGenParameterSpec;
 import java.util.Arrays;
+import java.util.Date;
+import java.util.Enumeration;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
@@ -31,9 +36,17 @@ import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 
 import org.bouncycastle.asn1.ASN1Object;
+import org.bouncycastle.asn1.ASN1Primitive;
 import org.bouncycastle.asn1.DERBitString;
+import org.bouncycastle.asn1.DERObjectIdentifier;
 import org.bouncycastle.asn1.util.ASN1Dump;
 import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
+import org.bouncycastle.asn1.x509.X509Extension;
+import org.bouncycastle.asn1.x509.X509Extensions;
+import org.bouncycastle.asn1.x509.X509Name;
+import org.bouncycastle.x509.X509V3CertificateGenerator;
+import org.bouncycastle.x509.extension.AuthorityKeyIdentifierStructure;
+import org.bouncycastle.x509.extension.SubjectKeyIdentifierStructure;
 import org.bouncycastle.crypto.CipherParameters;
 import org.bouncycastle.crypto.params.AsymmetricKeyParameter;
 import org.bouncycastle.crypto.params.ECDomainParameters;
@@ -67,6 +80,50 @@ public class PKI {
             keyPair = keyPairGenerator.generateKeyPair();
         }
         return keyPair;
+    }
+
+    public static X509Certificate generateSelfSignedCertificate(
+        PublicKey publicKey, KeyPair issuerKeyPair,
+        X509Name subjectDN, X509Name issuerDN, X509Extensions extensions,
+        String signingAlgorithm)
+        throws GeneralSecurityException, CertificateParsingException {
+
+        long timestamp = System.currentTimeMillis();
+        Date startDate = new Date(timestamp);
+        Date expiryDate = new Date(timestamp + 31536000000L);
+
+        byte[] serial = longToBytes(timestamp);
+        BigInteger serialNumber = new BigInteger(serial);
+
+        X509V3CertificateGenerator certGen = new X509V3CertificateGenerator();
+        certGen.setSerialNumber(serialNumber);
+        certGen.setNotBefore(startDate);
+        certGen.setNotAfter(expiryDate);
+        certGen.setIssuerDN(issuerDN);
+        certGen.setSubjectDN(subjectDN);
+        certGen.setPublicKey(publicKey);
+        certGen.setSignatureAlgorithm(signingAlgorithm);
+
+        if (extensions != null) {
+            Enumeration<DERObjectIdentifier> oids = extensions.oids();
+            while (oids.hasMoreElements()) {
+                DERObjectIdentifier oid = oids.nextElement();
+                X509Extension extension = extensions.getExtension(oid);
+                ASN1Object value;
+                if (X509Extensions.SubjectKeyIdentifier.equals(oid)) {
+                    value = new SubjectKeyIdentifierStructure(publicKey);
+                } else if (X509Extensions.AuthorityKeyIdentifier.equals(oid)) {
+                    value = new AuthorityKeyIdentifierStructure(issuerKeyPair.getPublic());
+                } else {
+                    value = extension.getValue();
+                }
+                certGen.addExtension(oid, extension.isCritical(), value);
+            }
+        }
+
+        X509Certificate cert = certGen.generate(issuerKeyPair.getPrivate(),
+                BouncyCastleProvider.PROVIDER_NAME);
+        return cert;
     }
 
     public static ECParameterSpec generateParameterSpec(String algorithm, String parameter) {
@@ -155,6 +212,19 @@ public class PKI {
         KeyPairGenerator keyPairGenerator = getKeyPairGenerator("ECGOST3410", "GostR3410-2001-CryptoPro-A");
 
         KeyPair keyPair = generateKeyPair(keyPairGenerator);
+
+        if (keyPair != null) {
+            X509Name subjectDN = new X509Name("CN=test");
+            try {
+                X509Certificate certificate = generateSelfSignedCertificate(
+                    keyPair.getPublic(), keyPair, subjectDN, subjectDN, null,
+                    "GOST3411withECGOST3410");
+                byte[] certificateEnc = certificate.getEncoded();
+                printDEREncoded("Self-signed certificate", certificateEnc);
+            } catch (Exception e) {
+                System.out.println(e.toString());
+            }
+        }
 
         ECPoint point = null;
         ECParameterSpec paramSpec = null;
@@ -258,12 +328,27 @@ public class PKI {
         printDEREncoded("Signature", asn1signature);
     }
 
+    private static byte[] longToBytes(long value) {
+        ByteBuffer buffer = ByteBuffer.allocate(8);
+        buffer.putLong(value);
+        return buffer.array();
+    }
+
+    private static void printDEREncoded(String message, byte[] asn1encoded) {
+        try {
+            ASN1Object object = ASN1Primitive.fromByteArray(asn1encoded);
+            printDEREncoded(message, object);
+        } catch(IOException e) {
+            System.out.println(message + "\t" + e.toString());
+        }
+    }
+
     private static void printDEREncoded(String message, ASN1Object object) {
         try {
             byte[] derEncoded = object.getEncoded("DER");
             System.out.println(message +
                 "\n" + toHexStr(derEncoded) +
-                "\n" + ASN1Dump.dumpAsString(object, false));
+                "\n" + ASN1Dump.dumpAsString(object, true));
         } catch(IOException e) {
             System.out.println(message + "\t" + e.toString());
         }
