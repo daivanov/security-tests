@@ -25,6 +25,7 @@ import java.security.spec.ECGenParameterSpec;
 import java.security.spec.ECParameterSpec;
 import java.security.spec.ECPoint;
 import java.security.spec.ECPublicKeySpec;
+import java.security.spec.ECPrivateKeySpec;
 import java.security.spec.RSAKeyGenParameterSpec;
 import java.util.Arrays;
 import java.util.Date;
@@ -155,6 +156,21 @@ public class PKI {
         return publicKey;
     }
 
+    public static PrivateKey recoverECPrivateKey(String algorithm, BigInteger point, ECParameterSpec paramSpec) {
+        PrivateKey privateKey = null;
+        if (point != null && paramSpec != null) {
+            ECPrivateKeySpec privKeySpec = new ECPrivateKeySpec(point, paramSpec);
+            try {
+                KeyFactory keyFactory = KeyFactory.getInstance(algorithm, BouncyCastleProvider.PROVIDER_NAME);
+                privateKey = keyFactory.generatePrivate(privKeySpec);
+                System.out.println(privateKey.toString());
+            } catch(GeneralSecurityException e) {
+                System.out.println(e.toString());
+            }
+        }
+        return privateKey;
+    }
+
     public static byte[] sign(String algorithm, PrivateKey privateKey, byte[] messageBytes) {
         byte[] signatureBytes = null;
         try {
@@ -227,12 +243,17 @@ public class PKI {
         }
 
         ECPoint point = null;
+        BigInteger point2 = null;
         ECParameterSpec paramSpec = null;
         if (keyPair != null) {
             PublicKey publicKey = keyPair.getPublic();
             System.out.println(publicKey.toString());
             PrivateKey privateKey = keyPair.getPrivate();
             System.out.println(privateKey.toString());
+            if (privateKey instanceof ECPrivateKey) {
+                ECPrivateKey ecPrivateKey = (ECPrivateKey)privateKey;
+                point2 = ecPrivateKey.getS();
+            }
             if (publicKey instanceof ECPublicKey) {
                 ECPublicKey ecPublicKey = (ECPublicKey)publicKey;
                 point = ecPublicKey.getW();
@@ -251,7 +272,10 @@ public class PKI {
             }
         }
 
-        PublicKey recoveredKey = recoverECPublicKey("ECGOST3410", point,
+        PublicKey recoveredPubKey = recoverECPublicKey("ECGOST3410", point,
+            generateParameterSpec("ECGOST3410", "GostR3410-2001-CryptoPro-A"));
+
+        PrivateKey recoveredPrivKey = recoverECPrivateKey("ECGOST3410", point2,
             generateParameterSpec("ECGOST3410", "GostR3410-2001-CryptoPro-A"));
 
         /* Encrypt/Decrypt */
@@ -307,7 +331,7 @@ public class PKI {
             System.out.println("Signature\tinvalid");
         }
 
-        if (verify("GOST3411withECGOST3410", recoveredKey, message, signatureBytes)) {
+        if (verify("GOST3411withECGOST3410", recoveredPubKey, message, signatureBytes)) {
             System.out.println("Signature with recovered key\tvalid");
         } else {
             System.out.println("Signature with recovered key\tinvalid");
