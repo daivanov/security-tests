@@ -1,4 +1,5 @@
 import java.io.IOException;
+import java.io.ByteArrayInputStream;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.security.GeneralSecurityException;
@@ -37,7 +38,8 @@ import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 
 import org.bouncycastle.asn1.ASN1Object;
-import org.bouncycastle.asn1.ASN1Primitive;
+import org.bouncycastle.asn1.ASN1Encodable;
+import org.bouncycastle.asn1.ASN1InputStream;
 import org.bouncycastle.asn1.DERBitString;
 import org.bouncycastle.asn1.DERObjectIdentifier;
 import org.bouncycastle.asn1.util.ASN1Dump;
@@ -358,9 +360,16 @@ public class PKI {
         return buffer.array();
     }
 
+    private static ASN1Object bytesToDER(byte[] asn1data) throws IOException {
+        ByteArrayInputStream bais = new ByteArrayInputStream(asn1data);
+        ASN1InputStream ais = new ASN1InputStream(bais);
+        ASN1Object obj = ais.readObject();
+        return obj;
+    }
+
     private static void printDEREncoded(String message, byte[] asn1encoded) {
         try {
-            ASN1Object object = ASN1Primitive.fromByteArray(asn1encoded);
+            ASN1Object object = bytesToDER(asn1encoded);
             printDEREncoded(message, object);
         } catch(IOException e) {
             System.out.println(message + "\t" + e.toString());
