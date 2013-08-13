@@ -1,8 +1,8 @@
 <project name="security-tests" default="run">
 
   <path id="classpath-compile">
-    <pathelement location="bcprov-jdk15on-148.jar" />
-    <pathelement location="bcpkix-jdk15on-148.jar" />
+    <pathelement location="bcprov-jdk15on-149.jar" />
+    <pathelement location="bcpkix-jdk15on-149.jar" />
   </path>
 
   <path id="classpath-run">

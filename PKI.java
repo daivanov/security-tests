@@ -54,7 +54,7 @@ import org.bouncycastle.crypto.params.ECDomainParameters;
 import org.bouncycastle.crypto.params.ECPrivateKeyParameters;
 import org.bouncycastle.crypto.params.ECPublicKeyParameters;
 import org.bouncycastle.crypto.signers.ECGOST3410Signer;
-import org.bouncycastle.jcajce.provider.asymmetric.ec.ECUtil;
+import org.bouncycastle.jcajce.provider.asymmetric.util.ECUtil;
 //import org.bouncycastle.jce.spec.IEKeySpec;
 import org.bouncycastle.jce.spec.IESParameterSpec;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
