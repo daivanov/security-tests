@@ -40,9 +40,9 @@ import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 
-import org.bouncycastle.asn1.ASN1Object;
 import org.bouncycastle.asn1.ASN1Encodable;
 import org.bouncycastle.asn1.ASN1InputStream;
+import org.bouncycastle.asn1.ASN1Object;
 import org.bouncycastle.asn1.DERBitString;
 import org.bouncycastle.asn1.DERObjectIdentifier;
 import org.bouncycastle.asn1.util.ASN1Dump;
@@ -224,6 +224,17 @@ public class PKI {
         return signatureBytes;
     }
 
+    public static byte[] digest(String algorithm, byte[] messageBytes) {
+        byte[] digest = null;
+        try {
+            MessageDigest md = MessageDigest.getInstance(algorithm, BouncyCastleProvider.PROVIDER_NAME);
+            digest = md.digest(messageBytes);
+        } catch(GeneralSecurityException e) {
+            System.out.println(e.toString());
+        }
+        return digest;
+    }
+
     public static byte[] signHashECGOST3410(byte[] hash, PrivateKey privateKey) {
         byte[] signature = null;
         ECGOST3410Signer gost3410Signer = new ECGOST3410Signer();
@@ -283,6 +294,9 @@ public class PKI {
                 byte[] signedData = generateSignedData(algorithm, data,
                     keyPair.getPrivate(), certificate);
                 System.out.println("PKCS#7\n" + toHexStr(signedData));
+
+                byte[] hash = digest("GOST3411", data);
+                System.out.println("Digest: " + toHexStr(hash));
             } catch (Exception e) {
                 System.out.println(e.toString());
             }
@@ -333,9 +347,7 @@ public class PKI {
             byte[] encoding = new byte[] { 8, 7, 6, 5, 4, 3, 2, 1 };
             IESParameterSpec iesSpec = new IESParameterSpec(derivation, encoding, 128);
             Key publicKey = keyPair.getPublic();
-            //Key publicKey = new IEKeySpec(keyPair.getPrivate(), keyPair.getPublic());
             Key privateKey = keyPair.getPrivate();
-            //Key privateKey = new IEKeySpec(keyPair.getPrivate(), keyPair.getPublic());
             try {
 
                 Cipher cipher1 = Cipher.getInstance("ECIES", BouncyCastleProvider.PROVIDER_NAME);
@@ -358,14 +370,8 @@ public class PKI {
         System.out.println("Signature\n" + toHexStr(signatureBytes).replaceAll("(.{64})", "$1\n"));
 
         /* Compute digest */
-        byte[] hash = null;
-        try {
-            MessageDigest md = MessageDigest.getInstance("GOST3411", BouncyCastleProvider.PROVIDER_NAME);
-            hash = md.digest(message);
-            System.out.println("Hash\n" + toHexStr(hash));
-        } catch(GeneralSecurityException e) {
-            System.out.println(e.toString());
-        }
+        byte[] hash = digest("GOST3411", message);
+        System.out.println("Hash\n" + toHexStr(hash));
 
         /* Sign digest */
         byte[] hashSignatureBytes = signHashECGOST3410(hash, keyPair.getPrivate());
