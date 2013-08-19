@@ -21,6 +21,7 @@ import java.security.Security;
 import java.security.Signature;
 import java.security.cert.CertificateParsingException;
 import java.security.cert.X509Certificate;
+import java.security.cert.Certificate;
 import java.security.spec.AlgorithmParameterSpec;
 import java.security.spec.ECGenParameterSpec;
 import java.security.spec.ECParameterSpec;
@@ -28,9 +29,11 @@ import java.security.spec.ECPoint;
 import java.security.spec.ECPublicKeySpec;
 import java.security.spec.ECPrivateKeySpec;
 import java.security.spec.RSAKeyGenParameterSpec;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.Enumeration;
+import java.util.List;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
@@ -47,9 +50,14 @@ import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
 import org.bouncycastle.asn1.x509.X509Extension;
 import org.bouncycastle.asn1.x509.X509Extensions;
 import org.bouncycastle.asn1.x509.X509Name;
-import org.bouncycastle.x509.X509V3CertificateGenerator;
-import org.bouncycastle.x509.extension.AuthorityKeyIdentifierStructure;
-import org.bouncycastle.x509.extension.SubjectKeyIdentifierStructure;
+import org.bouncycastle.cert.jcajce.JcaCertStore;
+import org.bouncycastle.cms.CMSException;
+import org.bouncycastle.cms.CMSProcessableByteArray;
+import org.bouncycastle.cms.CMSSignedData;
+import org.bouncycastle.cms.CMSSignedDataGenerator;
+import org.bouncycastle.cms.CMSTypedData;
+import org.bouncycastle.cms.jcajce.JcaSignerInfoGeneratorBuilder;
+import org.bouncycastle.cms.SignerInfoGenerator;
 import org.bouncycastle.crypto.CipherParameters;
 import org.bouncycastle.crypto.params.AsymmetricKeyParameter;
 import org.bouncycastle.crypto.params.ECDomainParameters;
@@ -57,11 +65,19 @@ import org.bouncycastle.crypto.params.ECPrivateKeyParameters;
 import org.bouncycastle.crypto.params.ECPublicKeyParameters;
 import org.bouncycastle.crypto.signers.ECGOST3410Signer;
 import org.bouncycastle.jcajce.provider.asymmetric.util.ECUtil;
-//import org.bouncycastle.jce.spec.IEKeySpec;
 import org.bouncycastle.jce.spec.IESParameterSpec;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.bouncycastle.operator.ContentSigner;
 import org.bouncycastle.operator.DefaultSignatureAlgorithmIdentifierFinder;
+import org.bouncycastle.operator.DigestCalculatorProvider;
+import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
+import org.bouncycastle.operator.jcajce.JcaDigestCalculatorProviderBuilder;
+import org.bouncycastle.operator.OperatorCreationException;
 import org.bouncycastle.util.encoders.Hex;
+import org.bouncycastle.util.Store;
+import org.bouncycastle.x509.X509V3CertificateGenerator;
+import org.bouncycastle.x509.extension.AuthorityKeyIdentifierStructure;
+import org.bouncycastle.x509.extension.SubjectKeyIdentifierStructure;
 
 public class PKI {
 
@@ -127,6 +143,28 @@ public class PKI {
         X509Certificate cert = certGen.generate(issuerKeyPair.getPrivate(),
                 BouncyCastleProvider.PROVIDER_NAME);
         return cert;
+    }
+
+    public static byte[] generateSignedData(final String algorithm, final byte[] data, final PrivateKey privateKey,
+        final X509Certificate certificate) throws GeneralSecurityException, CMSException, OperatorCreationException, IOException {
+
+        final List<Certificate> certificates = new ArrayList<Certificate>();
+        certificates.add(certificate);
+        Store certStore = new JcaCertStore(certificates);
+
+        ContentSigner signer = new JcaContentSignerBuilder(algorithm).setProvider("BC").build(privateKey);
+        DigestCalculatorProvider calculator = new JcaDigestCalculatorProviderBuilder().setProvider("BC").build();
+        SignerInfoGenerator infoGenerator = new JcaSignerInfoGeneratorBuilder(calculator).build(signer, certificate);
+
+        CMSSignedDataGenerator generator = new CMSSignedDataGenerator();
+        generator.addSignerInfoGenerator(infoGenerator);
+        generator.addCertificates(certStore);
+
+        CMSTypedData cmsdata = new CMSProcessableByteArray(data);
+        CMSSignedData signedData = generator.generate(cmsdata, true);
+        byte[] dataBEREnc = signedData.getEncoded();
+        ASN1Object obj = bytesToDER(dataBEREnc);
+        return obj.getEncoded("DER");
     }
 
     public static ECParameterSpec generateParameterSpec(String algorithm, String parameter) {
@@ -234,11 +272,17 @@ public class PKI {
         if (keyPair != null) {
             X509Name subjectDN = new X509Name("CN=test");
             try {
+                String algorithm = "GOST3411withECGOST3410";
                 X509Certificate certificate = generateSelfSignedCertificate(
                     keyPair.getPublic(), keyPair, subjectDN, subjectDN, null,
-                    "GOST3411withECGOST3410");
+                    algorithm);
                 byte[] certificateEnc = certificate.getEncoded();
                 printDEREncoded("Self-signed certificate", certificateEnc);
+
+                byte[] data = "Data to be signed".getBytes("UTF-8");
+                byte[] signedData = generateSignedData(algorithm, data,
+                    keyPair.getPrivate(), certificate);
+                System.out.println("PKCS#7\n" + toHexStr(signedData));
             } catch (Exception e) {
                 System.out.println(e.toString());
             }
