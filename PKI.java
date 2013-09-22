@@ -160,8 +160,8 @@ public class PKI {
         generator.addSignerInfoGenerator(infoGenerator);
         generator.addCertificates(certStore);
 
-        CMSTypedData cmsdata = new CMSProcessableByteArray(data);
-        CMSSignedData signedData = generator.generate(cmsdata, true);
+        CMSTypedData cmsData = new CMSProcessableByteArray(data);
+        CMSSignedData signedData = generator.generate(cmsData, true);
         byte[] dataBEREnc = signedData.getEncoded();
         ASN1Object obj = bytesToDER(dataBEREnc);
         return obj.getEncoded("DER");
@@ -258,6 +258,23 @@ public class PKI {
         return signature;
     }
 
+    public static boolean verifyHashECGOST3410(byte[] hash, byte[] signature, PublicKey publicKey) {
+        boolean valid = false;
+        ECGOST3410Signer gost3410Signer = new ECGOST3410Signer();
+        try {
+            CipherParameters param = ECUtil.generatePublicKeyParameter(publicKey);
+            gost3410Signer.init(false, param);
+
+            byte[] s = Arrays.copyOfRange(signature, 0, 32);
+            byte[] r = Arrays.copyOfRange(signature, 32, 64);
+
+            valid = gost3410Signer.verifySignature(hash, new BigInteger(1, r), new BigInteger(1, s));
+        } catch(GeneralSecurityException e) {
+            System.out.println(e.toString());
+        }
+        return valid;
+    }
+
     public static boolean verify(String algorithm, PublicKey publicKey, byte[] messageBytes, byte[] signatureBytes) {
         boolean valid = false;
         try {
@@ -297,6 +314,13 @@ public class PKI {
 
                 byte[] hash = digest("GOST3411", data);
                 System.out.println("Digest: " + toHexStr(hash));
+
+                byte[] signature = sign(algorithm, keyPair.getPrivate(), data);
+                if (!verify(algorithm, keyPair.getPublic(), data, signature)) {
+                    System.out.println("Invalid");
+                } else {
+                    System.out.println("Valid");
+                }
             } catch (Exception e) {
                 System.out.println(e.toString());
             }
@@ -378,22 +402,29 @@ public class PKI {
         System.out.println("Hash signature\n" + toHexStr(hashSignatureBytes).replaceAll("(.{64})", "$1\n"));
 
         if (verify("GOST3411withECGOST3410", keyPair.getPublic(), message, signatureBytes)) {
-            System.out.println("Signature\tvalid");
+            System.out.println("Signature:\t\t\t\tvalid");
         } else {
-            System.out.println("Signature\tinvalid");
+            System.out.println("Signature:\t\t\t\tinvalid");
         }
 
         if (verify("GOST3411withECGOST3410", recoveredPubKey, message, signatureBytes)) {
-            System.out.println("Signature with recovered key\tvalid");
+            System.out.println("Signature with recovered key:\tvalid");
         } else {
-            System.out.println("Signature with recovered key\tinvalid");
+            System.out.println("Signature with recovered key:\tinvalid");
         }
 
         if (verify("GOST3411withECGOST3410", keyPair.getPublic(), message, hashSignatureBytes)) {
-            System.out.println("Hash signature\tvalid");
+            System.out.println("Hash signature:\t\t\tvalid");
         } else {
-            System.out.println("Hash signature\tinvalid");
+            System.out.println("Hash signature:\t\t\tinvalid");
         }
+
+        if (verifyHashECGOST3410(hash, hashSignatureBytes, keyPair.getPublic())) {
+            System.out.println("Hash signature with signer:\t\tvalid");
+        } else {
+            System.out.println("Hash signature with signer:\t\tinvalid");
+        }
+
 
         /* Encode signature as ASN.1 DER */
         DefaultSignatureAlgorithmIdentifierFinder finder = new DefaultSignatureAlgorithmIdentifierFinder();
