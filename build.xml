@@ -18,6 +18,9 @@
 
   <target name="run" depends="compile">
     <java classname="PKI" classpathref="classpath-run">
+      <!--
+      <jvmarg value="-Xrunhprof:cpu=times,file=log.txt,depth=3"/>
+      -->
     </java>
   </target>
 
