@@ -1,6 +1,7 @@
 <project name="security-tests" default="run">
 
   <path id="classpath-compile">
+    <pathelement location="btrace-boot.jar" />
     <pathelement location="bcprov-jdk15on-149.jar" />
     <pathelement location="bcpkix-jdk15on-149.jar" />
   </path>
@@ -13,13 +14,15 @@
   <target name="compile">
     <javac srcdir="./" destdir="./" source="1.6" target="1.6" includeantruntime="false" debug="on" classpathref="classpath-compile">
       <include name="PKI.java" />
+      <include name="Instrument.java" />
     </javac>
   </target>
 
   <target name="run" depends="compile">
-    <java classname="PKI" classpathref="classpath-run">
+    <java classname="PKI" classpathref="classpath-run" fork="true">
       <!--
       <jvmarg value="-Xrunhprof:cpu=times,file=log.txt,depth=3"/>
+      <jvmarg value="-javaagent:btrace-agent.jar=noServer=true,debug=true,script=Instrument.class,scriptOutputFile=./out.trace"/>
       -->
     </java>
   </target>

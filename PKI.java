@@ -425,7 +425,6 @@ public class PKI {
             System.out.println("Hash signature with signer:\t\tinvalid");
         }
 
-
         /* Encode signature as ASN.1 DER */
         DefaultSignatureAlgorithmIdentifierFinder finder = new DefaultSignatureAlgorithmIdentifierFinder();
         AlgorithmIdentifier algoId = finder.find("GOST3411withECGOST3410");
