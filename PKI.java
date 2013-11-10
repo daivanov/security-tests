@@ -1,20 +1,20 @@
 import java.io.IOException;
 import java.io.ByteArrayInputStream;
+import java.io.FileOutputStream;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.security.GeneralSecurityException;
 import java.security.interfaces.ECKey;
 import java.security.interfaces.ECPublicKey;
 import java.security.interfaces.ECPrivateKey;
-import java.security.interfaces.RSAPublicKey;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
-import java.security.InvalidKeyException;
 import java.security.Key;
 import java.security.KeyFactory;
+import java.security.KeyStore;
+import java.security.KeyStoreException;
 import java.security.MessageDigest;
 import java.security.PrivateKey;
-import java.security.Provider;
 import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.Security;
@@ -28,19 +28,14 @@ import java.security.spec.ECParameterSpec;
 import java.security.spec.ECPoint;
 import java.security.spec.ECPublicKeySpec;
 import java.security.spec.ECPrivateKeySpec;
-import java.security.spec.RSAKeyGenParameterSpec;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.Enumeration;
 import java.util.List;
 
-import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
-import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.NoSuchPaddingException;
 
-import org.bouncycastle.asn1.ASN1Encodable;
 import org.bouncycastle.asn1.ASN1InputStream;
 import org.bouncycastle.asn1.ASN1Object;
 import org.bouncycastle.asn1.DERBitString;
@@ -59,10 +54,6 @@ import org.bouncycastle.cms.CMSTypedData;
 import org.bouncycastle.cms.jcajce.JcaSignerInfoGeneratorBuilder;
 import org.bouncycastle.cms.SignerInfoGenerator;
 import org.bouncycastle.crypto.CipherParameters;
-import org.bouncycastle.crypto.params.AsymmetricKeyParameter;
-import org.bouncycastle.crypto.params.ECDomainParameters;
-import org.bouncycastle.crypto.params.ECPrivateKeyParameters;
-import org.bouncycastle.crypto.params.ECPublicKeyParameters;
 import org.bouncycastle.crypto.signers.ECGOST3410Signer;
 import org.bouncycastle.jcajce.provider.asymmetric.util.ECUtil;
 import org.bouncycastle.jce.spec.IESParameterSpec;
@@ -93,7 +84,8 @@ public class PKI {
         return keyPairGenerator;
     }
 
-    public static KeyPair generateKeyPair(KeyPairGenerator keyPairGenerator) {
+    public static KeyPair generateKeyPair(String algorithm, String parameter) {
+        KeyPairGenerator keyPairGenerator = getKeyPairGenerator(algorithm, parameter);
         KeyPair keyPair = null;
         if (keyPairGenerator != null) {
             keyPair = keyPairGenerator.generateKeyPair();
@@ -145,6 +137,32 @@ public class PKI {
         return cert;
     }
 
+    public static void makeKeyStore(
+        String keyStoreType, String keyStorePwd, String keyStoreFile,
+        PrivateKey privateKey, X509Certificate certificate)
+        throws IOException, KeyStoreException, GeneralSecurityException {
+
+        char[] pwd = keyStorePwd.toCharArray();
+
+        /* Create Key Store */
+        KeyStore ks = KeyStore.getInstance(keyStoreType, BouncyCastleProvider.PROVIDER_NAME);
+        ks.load(null, pwd);
+
+        /* Fill Key Store */
+        KeyStore.ProtectionParameter protParam =
+            new KeyStore.PasswordProtection(pwd);
+        Certificate[] certChain =
+            new Certificate[]{ certificate };
+        KeyStore.PrivateKeyEntry pkEntry =
+            new  KeyStore.PrivateKeyEntry(privateKey, certChain);
+        ks.setEntry("keypair", pkEntry, protParam);
+
+        /* Save Key Store */
+        FileOutputStream fos = new FileOutputStream(keyStoreFile);
+        ks.store(fos, pwd);
+        fos.close();
+    }
+
     public static byte[] generateSignedData(final String algorithm, final byte[] data, final PrivateKey privateKey,
         final X509Certificate certificate) throws GeneralSecurityException, CMSException, OperatorCreationException, IOException {
 
@@ -168,8 +186,7 @@ public class PKI {
     }
 
     public static ECParameterSpec generateParameterSpec(String algorithm, String parameter) {
-        KeyPairGenerator keyPairGenerator = getKeyPairGenerator(algorithm, parameter);
-        KeyPair keyPair = generateKeyPair(keyPairGenerator);
+        KeyPair keyPair = generateKeyPair(algorithm, parameter);
         ECParameterSpec paramSpec = null;
         if (keyPair != null) {
             PublicKey publicKey = keyPair.getPublic();
@@ -293,9 +310,7 @@ public class PKI {
         Security.addProvider(new BouncyCastleProvider());
         System.out.println(Security.getProvider(BouncyCastleProvider.PROVIDER_NAME).getInfo());
 
-        KeyPairGenerator keyPairGenerator = getKeyPairGenerator("ECGOST3410", "GostR3410-2001-CryptoPro-A");
-
-        KeyPair keyPair = generateKeyPair(keyPairGenerator);
+        KeyPair keyPair = generateKeyPair("ECGOST3410", "GostR3410-2001-CryptoPro-A");
 
         if (keyPair != null) {
             X509Name subjectDN = new X509Name("CN=test");
@@ -306,6 +321,11 @@ public class PKI {
                     algorithm);
                 byte[] certificateEnc = certificate.getEncoded();
                 printDEREncoded("Self-signed certificate", certificateEnc);
+
+                String keyStoreFile = "keystore.p12";
+                makeKeyStore("PKCS12", "pwd", keyStoreFile,
+                    keyPair.getPrivate(), certificate);
+                System.out.println(String.format("Key store saved to %s", keyStoreFile));
 
                 byte[] data = "Data to be signed".getBytes("UTF-8");
                 byte[] signedData = generateSignedData(algorithm, data,
