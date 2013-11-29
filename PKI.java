@@ -305,6 +305,18 @@ public class PKI {
         return valid;
     }
 
+    public static byte[] prepareMessage() {
+        byte[] message = null;
+        try {
+            message = "Message to be used".getBytes("UTF-8");
+        } catch (Exception e) {
+            System.out.println(e.toString());
+        }
+        return message;
+    }
+
+    private static byte[] message = prepareMessage();
+
     public static void main(String[] args) {
 
         Security.addProvider(new BouncyCastleProvider());
@@ -327,16 +339,15 @@ public class PKI {
                     keyPair.getPrivate(), certificate);
                 System.out.println(String.format("Key store saved to %s", keyStoreFile));
 
-                byte[] data = "Data to be signed".getBytes("UTF-8");
-                byte[] signedData = generateSignedData(algorithm, data,
+                byte[] signedData = generateSignedData(algorithm, message,
                     keyPair.getPrivate(), certificate);
                 System.out.println("PKCS#7\n" + toHexStr(signedData));
 
-                byte[] hash = digest("GOST3411", data);
+                byte[] hash = digest("GOST3411", message);
                 System.out.println("Digest: " + toHexStr(hash));
 
-                byte[] signature = sign(algorithm, keyPair.getPrivate(), data);
-                if (!verify(algorithm, keyPair.getPublic(), data, signature)) {
+                byte[] signature = sign(algorithm, keyPair.getPrivate(), message);
+                if (!verify(algorithm, keyPair.getPublic(), message, signature)) {
                     System.out.println("Invalid");
                 } else {
                     System.out.println("Valid");
@@ -383,7 +394,6 @@ public class PKI {
             generateParameterSpec("ECGOST3410", "GostR3410-2001-CryptoPro-A"));
 
         /* Encrypt/Decrypt */
-        byte[] message = Hex.decode("1234567890abcdef");
         System.out.println("Message\t" + toHexStr(message));
 
         if (keyPair != null) {
