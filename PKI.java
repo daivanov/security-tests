@@ -305,6 +305,29 @@ public class PKI {
         return valid;
     }
 
+    public static ECPoint inspectPublicKey(PublicKey publicKey) {
+        ECPoint point = null;
+        if (publicKey instanceof ECPublicKey) {
+            ECPublicKey ecPublicKey = (ECPublicKey)publicKey;
+            point = ecPublicKey.getW();
+            BigInteger affineX = point.getAffineX();
+            System.out.println("X\t" + affineX.toString(16));
+            BigInteger affineY = point.getAffineY();
+            System.out.println("Y\t" + affineY.toString(16));
+            ECParameterSpec paramSpec = ecPublicKey.getParams();
+            System.out.println("Co-factor\t" + paramSpec.getCofactor());
+            System.out.println("Curve A\t" + paramSpec.getCurve().getA().toString(16));
+            System.out.println("Curve B\t" + paramSpec.getCurve().getB().toString(16));
+            System.out.println("Curve field size\t" + paramSpec.getCurve().getField().getFieldSize());
+            System.out.println("Generator X\t" + paramSpec.getGenerator().getAffineX().toString(16));
+            System.out.println("Generator Y\t" + paramSpec.getGenerator().getAffineY().toString(16));
+            System.out.println("Order\t" + paramSpec.getOrder().toString(16));
+        } else {
+            System.out.println(publicKey.getClass().getSimpleName() + " is not supported");
+        }
+        return point;
+    }
+
     public static byte[] prepareMessage() {
         byte[] message = null;
         try {
@@ -359,7 +382,6 @@ public class PKI {
 
         ECPoint point = null;
         BigInteger point2 = null;
-        ECParameterSpec paramSpec = null;
         if (keyPair != null) {
             PublicKey publicKey = keyPair.getPublic();
             System.out.println(publicKey.toString());
@@ -369,22 +391,7 @@ public class PKI {
                 ECPrivateKey ecPrivateKey = (ECPrivateKey)privateKey;
                 point2 = ecPrivateKey.getS();
             }
-            if (publicKey instanceof ECPublicKey) {
-                ECPublicKey ecPublicKey = (ECPublicKey)publicKey;
-                point = ecPublicKey.getW();
-                BigInteger affineX = point.getAffineX();
-                System.out.println("X\t" + affineX.toString(16));
-                BigInteger affineY = point.getAffineY();
-                System.out.println("Y\t" + affineY.toString(16));
-                paramSpec = ecPublicKey.getParams();
-                System.out.println("Co-factor\t" + paramSpec.getCofactor());
-                System.out.println("Curve A\t" + paramSpec.getCurve().getA().toString(16));
-                System.out.println("Curve B\t" + paramSpec.getCurve().getB().toString(16));
-                System.out.println("Curve filed size\t" + paramSpec.getCurve().getField().getFieldSize());
-                System.out.println("Generator X\t" + paramSpec.getGenerator().getAffineX().toString(16));
-                System.out.println("Generator Y\t" + paramSpec.getGenerator().getAffineY().toString(16));
-                System.out.println("Order\t" + paramSpec.getOrder().toString(16));
-            }
+            point = inspectPublicKey(publicKey);
         }
 
         PublicKey recoveredPubKey = recoverECPublicKey("ECGOST3410", point,
