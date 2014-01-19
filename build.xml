@@ -15,6 +15,7 @@
     <javac srcdir="./" destdir="./" source="1.6" target="1.6" includeantruntime="false" debug="on" classpathref="classpath-compile">
       <include name="PKI.java" />
       <include name="Instrument.java" />
+      <include name="Agreement.java" />
     </javac>
   </target>
 

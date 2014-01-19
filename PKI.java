@@ -469,6 +469,8 @@ public class PKI {
         org.bouncycastle.asn1.ocsp.Signature asn1signature = new org.bouncycastle.asn1.ocsp.Signature(
             algoId, new DERBitString(hashSignatureBytes));
         printDEREncoded("Signature", asn1signature);
+
+        Agreement.test();
     }
 
     private static byte[] longToBytes(long value) {
