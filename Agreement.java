@@ -68,7 +68,10 @@ public class Agreement {
             System.out.println("Client secret:\n" + clientS.toString(16));
 
             BigInteger serverS = server.calculateSecret(clientCreds);
-            System.out.println("Server secret:\n" + serverS.toString(16) + " " + serverS.bitLength()/8);
+            System.out.println("Server secret:\n" + serverS.toString(16));
+            if (clientS.equals(serverS)) {
+                System.out.println("Agreement succeed");
+            }
         } catch(CryptoException e) {
             System.out.println(e.toString());
         }
